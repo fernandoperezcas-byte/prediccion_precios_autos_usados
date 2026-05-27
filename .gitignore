@@ -1,0 +1,13 @@
+# Entornos virtuales
+venv/
+.env
+
+# Archivos de Python y Jupyter
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Datos y Modelos (¡No subir archivos pesados a GitHub!)
+data/
+models/*.pkl
+models/*.joblib
