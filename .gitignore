@@ -8,6 +8,6 @@ __pycache__/
 .ipynb_checkpoints/
 
 # Datos y Modelos (¡No subir archivos pesados a GitHub!)
-data/
+# data/
 models/*.pkl
 models/*.joblib
