@@ -9,5 +9,5 @@ __pycache__/
 
 # Datos y Modelos (¡No subir archivos pesados a GitHub!)
 # data/
-models/*.pkl
-models/*.joblib
+# models/*.pkl
+# models/*.joblib
