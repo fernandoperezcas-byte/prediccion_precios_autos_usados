@@ -1,31 +1,33 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import numpy as np
+import os
 
-# 1. Configuración de la página (¡Añadimos metadatos para bloquear traductores que rompen React!)
+# 1. Configuración de la página y bloqueo de traductores de navegador
 st.set_page_config(page_title="Predicción de Precios de Autos", page_icon="🚗", layout="centered")
-
-# Inyectar HTML para evitar que Google Chrome intente traducir la página (causa común del error)
 st.markdown('<html lang="es" class="notranslate" translate="no">', unsafe_allow_html=True)
 
 st.title("🚗 Predicador de Precios de Autos Usados")
 st.write("Introduce las características del vehículo para estimar su precio de venta de mercado.")
 
-# 2. Cargar el modelo y las columnas esperadas
+# 2. Cargar el modelo y las columnas con manejo explícito de rutas
 @st.cache_resource
 def cargar_artefactos():
-    modelo = joblib.load('models/modelo_regresion_lineal.pkl')
-    columnas = joblib.load('models/columnas_modelo.pkl')
+    # Usar os.path asegura compatibilidad total entre Windows y Linux (Streamlit Cloud)
+    ruta_modelo = os.path.join("models", "modelo_regresion_lineal.pkl")
+    ruta_columnas = os.path.join("models", "columnas_modelo.pkl")
+    
+    modelo = joblib.load(ruta_modelo)
+    columnas = joblib.load(ruta_columnas)
     return modelo, columnas
 
 try:
     modelo, columnas_entrenamiento = cargar_artefactos()
 except Exception as e:
-    st.error("Error al cargar el modelo. Verifica que los archivos .pkl estén en GitHub.")
+    st.error(f"Error al cargar los artefactos del modelo: {e}")
     st.stop()
 
-# 3. Formulario de entrada protegido (st.form encapsula y evita errores de removeChild)
+# 3. Interfaz del Formulario de Entrada
 st.header("📋 Características del Vehículo")
 
 with st.form(key='formulario_prediccion'):
@@ -42,33 +44,38 @@ with st.form(key='formulario_prediccion'):
         seller_type = st.selectbox("Tipo de Vendedor", ["Dealer", "Individual"])
         transmission = st.selectbox("Transmisión", ["Manual", "Automatic"])
     
-    # El botón de envío ahora pertenece al formulario
-    submit_button = st.form_submit_with_no_render_issues = st.form_submit_button(label="🚀 Calcular Precio Estimado", use_container_width=True)
+    # Sintaxis limpia y correcta del botón
+    submit_button = st.form_submit_button(label="🚀 Calcular Precio Estimado", use_container_width=True)
 
-# 4. Procesar la predicción fuera del formulario cuando se hace clic
+# 4. Procesamiento de la Predicción
 if submit_button:
-    # Crear un diccionario base con ceros
+    # Generar diccionario base con floats
     datos_usuario = {col: 0.0 for col in columnas_entrenamiento}
     
-    # Asignar los valores numéricos directos
+    # Mapeo de datos numéricos directos (Uso seguro de strings con caracteres especiales)
     datos_usuario['Present_Price'] = float(present_price)
     datos_usuario['Kms_Driven'] = float(kms_driven)
-    datos_usuario['Años_Antiguedad'] = float(antiguedad)
     
-    # Modificar las columnas del One-Hot Encoding
+    # Manejo dinámico de la clave por si existe variación de codificación de la 'ñ'
+    if 'Años_Antiguedad' in datos_usuario:
+        datos_usuario['Años_Antiguedad'] = float(antiguedad)
+    elif 'Anos_Antiguedad' in datos_usuario:
+        datos_usuario['Anos_Antiguedad'] = float(antiguedad)
+        
+    # Variables categóricas del One-Hot Encoding
     if fuel_type == "Diesel": datos_usuario['Fuel_Type_Diesel'] = 1.0
     if fuel_type == "Petrol": datos_usuario['Fuel_Type_Petrol'] = 1.0
     if seller_type == "Individual": datos_usuario['Seller_Type_Individual'] = 1.0
     if transmission == "Manual": datos_usuario['Transmission_Manual'] = 1.0
     
-    # Convertir a DataFrame asegurando el orden exacto de las columnas
+    # Conversión a DataFrame ordenado
     df_pred = pd.DataFrame([datos_usuario])[columnas_entrenamiento]
     
-    # Realizar la predicción
+    # Predicción final escalar sin mutaciones de interfaz
     prediccion = modelo.predict(df_pred)
-    precio_final = max(0.0, prediccion[0]) # Asegurar que tome el valor escalar
+    precio_final = max(0.0, float(prediccion[0]))
     
-    # Contenedor dinámico para mostrar el resultado sin interferir con el DOM del formulario
-    st.balloons() # ¡Efecto visual opcional de celebración!
+    st.balloons()
     st.success(f"### 💰 El precio estimado de venta es: **{precio_final:.2f}** unidades de precio")
+
 
